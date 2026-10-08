@@ -1,5 +1,6 @@
 using Astra.Sdk;
 using BepInEx;
+using UnityEngine;
 
 namespace AstraLethal
 {
@@ -14,37 +15,46 @@ namespace AstraLethal
     /// inside the facility or in the ship, crouching, on a ladder, under water. What they look like is
     /// the set's business (a pack can make her scared, quiet, or curious).</item>
     /// </list>
+    /// Every game type (<c>StartOfRound</c>, <c>GameNetworkManager</c>, <c>PlayerControllerB</c>) is
+    /// reached by NAME through <see cref="Astra.Sdk.GameType"/>: this plugin compiles against the
+    /// Astra SDK, BepInEx and Unity only — never the game's own assemblies.
     /// </summary>
     [BepInPlugin(MyPluginInfo.PLUGIN_GUID, MyPluginInfo.PLUGIN_NAME, MyPluginInfo.PLUGIN_VERSION)]
     [BepInDependency(AstraSdk.Guid, AstraSdk.Dependency)]
     public sealed class Plugin : BaseUnityPlugin
     {
+        static readonly GameType StartOfRoundType = GameType.Find("StartOfRound");
+        static readonly Member<Camera> ActiveCamera = StartOfRoundType.Member<Camera>("activeCamera");
+        static readonly Member<int> CollidersAndRoomMaskAndDefault =
+            StartOfRoundType.Member<int>("collidersAndRoomMaskAndDefault");
+        static readonly Member<float> FearLevel = StartOfRoundType.Member<float>("fearLevel");
+
         void Awake()
         {
             var astra = AstraSdk.Register(MyPluginInfo.PLUGIN_GUID, "Lethal Company");
             astra.Defaults.MatchPlayerHeight = 0.95f;
             astra.Defaults.TeleportDistance = 25f;
-            astra.UseCamera(() => StartOfRound.Instance != null ? StartOfRound.Instance.activeCamera : null);
+            astra.UseCamera(() => ActiveCamera.Get(StartOfRoundType.Static<object>("Instance")));
             astra.UsePlayer(_ => LethalPlayer.Locate());
             // Its dark is darker than most games': at the engine's default floor she read as a lit
             // figure in a pitch-black corridor (the user's live check, 2026-10-07). Half of it.
             astra.UseLook(floor: 0.10f);
             astra.OnFrame(f =>
             {
-                var round = StartOfRound.Instance;
+                var round = StartOfRoundType.Static<object>("Instance");
                 if (round != null)
                 {
                     // The game's own walls-and-floors mask, once the round exists.
-                    astra.Defaults.GroundMask = round.collidersAndRoomMaskAndDefault;
-                    f.Params.Set("fear", round.fearLevel);
+                    astra.Defaults.GroundMask = CollidersAndRoomMaskAndDefault.Get(round);
+                    f.Params.Set("fear", FearLevel.Get(round));
                 }
                 var p = LethalPlayer.Local;
                 if (p == null) return;
-                f.Params.Set("inside", p.isInsideFactory)
-                    .Set("in_ship", p.isInHangarShipRoom)
-                    .Set("crouching", p.isCrouching)
-                    .Set("ladder", p.isClimbingLadder)
-                    .Set("underwater", p.isUnderwater);
+                f.Params.Set("inside", LethalPlayer.IsInsideFactory.Get(p))
+                    .Set("in_ship", LethalPlayer.IsInHangarShipRoom.Get(p))
+                    .Set("crouching", LethalPlayer.IsCrouching.Get(p))
+                    .Set("ladder", LethalPlayer.IsClimbingLadder.Get(p))
+                    .Set("underwater", LethalPlayer.IsUnderwater.Get(p));
             });
             Logger.LogInfo("Astra is coming along on the job");
         }
