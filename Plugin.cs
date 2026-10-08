@@ -26,6 +26,9 @@ namespace AstraLethal
             astra.Defaults.TeleportDistance = 25f;
             astra.UseCamera(() => StartOfRound.Instance != null ? StartOfRound.Instance.activeCamera : null);
             astra.UsePlayer(_ => LethalPlayer.Locate());
+            // Its dark is darker than most games': at the engine's default floor she read as a lit
+            // figure in a pitch-black corridor (the user's live check, 2026-10-07). Half of it.
+            astra.UseLook(floor: 0.10f);
             astra.OnFrame(f =>
             {
                 var round = StartOfRound.Instance;
