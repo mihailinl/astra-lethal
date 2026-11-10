@@ -3,10 +3,15 @@ schema = 1
 [integration]                      # metadata: shown to the user, never acted on
 id = "astra.lethal-company"
 name = "Astra for Lethal Company"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["mihailinl"]
 license = "MIT"
 repo = "https://github.com/mihailinl/astra-lethal"
+
+# What this integration asks of Astra: the [[config_writes]] row below hands the foundation the
+# avatar bridge's ${bridge_token}, which only the "presentation" capability allows.
+[integration.capabilities]
+companion = ["presentation"]
 
 [target]                           # which game
 steam_appid = 1966720
